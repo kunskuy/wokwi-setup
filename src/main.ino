@@ -1,29 +1,99 @@
-#define BLYNK_TEMPLATE_ID "TMPL6H8Fu8hT7"
-#define BLYNK_TEMPLATE_NAME "Test IoT"
-#define BLYNK_AUTH_TOKEN "zI01DtH6HMNFQHg-dBu06FHtmtaAtrPA"
-#define BLYNK_PRINT Serial
-
 #include <WiFi.h>
-#include <WiFiClient.h>
-#include <BlynkSimpleEsp32.h>
+#include <DHT.h>
+#include <FirebaseESP32.h>
 
-char ssid[] = "Wokwi-GUEST";
-char pass[] = "";
+// WiFi
+const char* ssid     = "Wokwi-GUEST";
+const char* password = "";
 
-BLYNK_WRITE (V0) {
-  int pinValue = param.asInt();
-  digitalWrite(2, pinValue);
+// Firebase
+#define FIREBASE_DATABASE_URL ""
+#define FIREBASE_API_KEY      ""
 
-  Serial.print("V0 Slider value is: ");
-  Serial.println((pinValue));
+// Sensor dan LED
+#define DHTPIN    13
+#define DHTTYPE   DHT22
+#define LED_PIN   2
+
+FirebaseData fbdo;
+FirebaseConfig config;
+FirebaseAuth auth;
+DHT dht(DHTPIN, DHTTYPE);
+
+void wifiConnection() {
+  Serial.print("Connecting to WiFi");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(500);
+  }
+  Serial.println();
+  Serial.println("WiFi Connected");
+  Serial.println("IP: " + WiFi.localIP().toString());
 }
 
-void setup () {
-  Serial.begin(9600);
-  pinMode(2, OUTPUT);
-  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+void firebase() {
+  Serial.println("Setting up Firebase connection...");
+  config.database_url = FIREBASE_DATABASE_URL;
+  config.api_key      = FIREBASE_API_KEY;
+  auth.user.email    = "";
+  auth.user.password = "";
+
+  Serial.print("Signing up anonymously...");
+  if (Firebase.signUp(&config, &auth, "", "")) {
+    Serial.println(" OK");
+  } else {
+    Serial.println(" FAILED");
+    Serial.print("  > reason: ");
+    Serial.println(config.signer.signupError.message.c_str());
+    return;
+  }
+
+  Firebase.begin(&config, &auth);
+  Firebase.reconnectWiFi(true);
+  Firebase.setReadTimeout(fbdo, 1000 * 60);
+  Firebase.setwriteSizeLimit(fbdo, "tiny");
+
+  Serial.println("Firebase connection setup completed");
 }
 
-void loop () {
-  Blynk.run();
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Starting setup...");
+  wifiConnection();
+  dht.begin();
+  pinMode(LED_PIN, OUTPUT);
+  firebase();
+  Serial.println("Setup completed");
+}
+
+void loop() {
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+
+  Serial.printf("Temperature : %6.2f °C ", t);
+  Serial.printf("Humidity    : %6.2f %%", h);
+
+  if (Firebase.ready()) {
+    // Kirim suhu langsung ke /temperature
+    if (Firebase.setFloat(fbdo, "/temperature", t)) {
+      Serial.println("→ Temp sent");
+    } else {
+      Serial.println("→ Temp send FAILED");
+      Serial.println("  Reason: " + fbdo.errorReason());
+    }
+
+    // Kirim kelembaban langsung ke /humidity
+    if (Firebase.setFloat(fbdo, "/humidity", h)) {
+      Serial.println("→ Humidity sent");
+    } else {
+      Serial.println("→ Humidity send FAILED");
+      Serial.println("  Reason: " + fbdo.errorReason());
+    }
+  } else {
+    Serial.println("Firebase not ready");
+  }
+
+  Serial.println();
+  delay(5000);
 }

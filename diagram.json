@@ -3,22 +3,15 @@
   "author": "יניב מאור",
   "editor": "wokwi",
   "parts": [
-    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": -52.9, "left": -53, "attrs": {} },
-    { "type": "wokwi-led", "id": "led1", "top": -42, "left": 167, "attrs": { "color": "red" } },
-    {
-      "type": "wokwi-resistor",
-      "id": "r1",
-      "top": 71.15,
-      "left": 96,
-      "attrs": { "value": "220" }
-    }
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": 14.3, "left": 187, "attrs": {} },
+    { "type": "wokwi-dht22", "id": "dht1", "top": 0.3, "left": 23.4, "attrs": {} }
   ],
   "connections": [
     [ "esp:TX0", "$serialMonitor:RX", "", [] ],
     [ "esp:RX0", "$serialMonitor:TX", "", [] ],
-    [ "r1:1", "esp:D2", "green", [ "v0" ] ],
-    [ "r1:2", "led1:A", "green", [ "v0", "h37.2" ] ],
-    [ "led1:C", "esp:GND.1", "green", [ "v96", "h0.4" ] ]
+    [ "esp:D13", "dht1:SDA", "green", [ "h0" ] ],
+    [ "esp:GND.2", "dht1:GND", "black", [ "h0" ] ],
+    [ "esp:VIN", "dht1:VCC", "red", [ "h0" ] ]
   ],
   "dependencies": {}
 }
